@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6f876d">
+<title>아미를 듣다 — 나의 아미 사운드</title>
+<style>
+:root{
+  --green:#6f876d; --deep:#3f5545; --cream:#f4f0e6; --paper:#fbf9f2;
+  --ink:#344238; --line:rgba(63,85,69,.18); --gold:#b49a69;
+}
+*{box-sizing:border-box} html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;color:var(--ink);background:var(--cream)}
+body{overflow-x:hidden}
+button{font:inherit}
+.app{min-height:100vh;position:relative;display:flex;justify-content:center}
+.bg{position:fixed;inset:0;pointer-events:none;background:
+ radial-gradient(circle at 12% 16%,rgba(255,255,255,.7),transparent 27%),
+ radial-gradient(circle at 86% 78%,rgba(111,135,109,.13),transparent 28%),
+ linear-gradient(135deg,#f5f1e8,#e9eee5 60%,#f4efe4)}
+.leaves{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+.leaf{position:absolute;top:-30px;font-size:18px;opacity:.75;animation:fall linear forwards}
+@keyframes fall{0%{transform:translate3d(0,-40px,0) rotate(0)}100%{transform:translate3d(var(--drift),110vh,0) rotate(420deg);opacity:0}}
+.card{width:min(100%,680px);min-height:100vh;padding:28px 22px 34px;position:relative;z-index:5}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+.brand{font-weight:700;letter-spacing:.05em;color:var(--deep)}
+.step{font-size:12px;opacity:.55}
+.screen{display:none;animation:up .45s ease}.screen.active{display:block}
+@keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.eyebrow{font-size:13px;letter-spacing:.16em;color:var(--green);font-weight:700;margin-bottom:12px}
+h1{font-size:clamp(30px,8vw,52px);line-height:1.08;margin:0 0 18px;letter-spacing:-.05em;color:var(--deep)}
+h2{font-size:28px;line-height:1.2;margin:0 0 14px;letter-spacing:-.04em}
+p{line-height:1.75;margin:0 0 18px;color:#526055}
+.hero{padding:54px 8px 40px;text-align:center}
+.circle{width:132px;height:132px;border-radius:50%;margin:0 auto 30px;background:rgba(111,135,109,.13);display:grid;place-items:center;box-shadow:0 0 0 12px rgba(255,255,255,.38);overflow:hidden}.circle img{width:92px;height:92px;object-fit:contain}
+.primary,.secondary{width:100%;border:0;border-radius:18px;padding:16px 20px;cursor:pointer;transition:.2s}
+.primary{background:var(--deep);color:white;box-shadow:0 10px 24px rgba(63,85,69,.16)}
+.primary:hover{transform:translateY(-1px)}
+.secondary{background:rgba(255,255,255,.6);border:1px solid var(--line);color:var(--deep);margin-top:10px}
+.notice{padding:15px 17px;border:1px solid var(--line);background:rgba(255,255,255,.48);border-radius:16px;font-size:13px;margin:18px 0}
+.recordbox{background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:28px;padding:26px;margin:25px 0}
+.mic{width:110px;height:110px;border-radius:50%;margin:5px auto 20px;display:grid;place-items:center;background:var(--deep);color:white;font-size:40px;box-shadow:0 0 0 10px rgba(111,135,109,.12)}
+.mic.recording{animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 22px rgba(111,135,109,.08)}}
+.timer{text-align:center;font-size:30px;font-variant-numeric:tabular-nums;color:var(--deep);margin-bottom:12px}
+.hint{text-align:center;font-size:14px;margin-bottom:0}
+.count{text-align:center;margin:16px 0;color:var(--green);font-weight:700}
+.dots{display:flex;gap:8px;justify-content:center;margin:12px 0 20px}.dot{width:8px;height:8px;border-radius:50%;background:#d2d8ce}.dot.done{background:var(--green)}
+.mix{text-align:center;padding:40px 4px 20px}
+.music-orb{width:170px;height:170px;border-radius:50%;margin:26px auto;background:radial-gradient(circle,#f7f2e5 0 18%,rgba(111,135,109,.38) 19% 38%,rgba(111,135,109,.16) 39% 62%,transparent 63%);animation:breathe 2.8s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.08);filter:blur(.2px)}}
+.progress{height:5px;background:#dce1d9;border-radius:99px;overflow:hidden;margin:18px 0}.bar{height:100%;width:0;background:var(--green);transition:width .2s linear}
+.small{font-size:12px;opacity:.62}
+.result-card{background:rgba(255,255,255,.62);border:1px solid var(--line);border-radius:26px;padding:25px;margin:22px 0}
+.result-tag{display:inline-block;background:rgba(111,135,109,.13);padding:7px 11px;border-radius:99px;color:var(--green);font-size:12px;font-weight:700}
+.result-title{font-size:25px;margin:12px 0 10px;color:var(--deep)}
+.footer{text-align:center;margin-top:25px;font-size:11px;opacity:.48}
+#live{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="bg"></div><div class="leaves" id="leaves"></div>
+<main class="card">
+  <div class="top"><div class="brand">아미를 듣다</div><div class="step" id="step">INTRO</div></div>
+
+  <section class="screen active" id="intro">
+    <div class="hero">
+      <div class="circle"><img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTIwIDEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBhcmlhLWhpZGRlbj0idHJ1ZSI+CjxnIGZpbGw9IiM1MzZkNTgiPgo8Y2lyY2xlIGN4PSIzOSIgY3k9IjQyIiByPSIyLjEiLz48Y2lyY2xlIGN4PSI0NyIgY3k9IjM1IiByPSIxLjciLz48Y2lyY2xlIGN4PSI1NiIgY3k9IjMyIiByPSIxLjUiLz4KPGNpcmNsZSBjeD0iMzEiIGN5PSI1MiIgcj0iMS44Ii8+PGNpcmNsZSBjeD0iNDAiIGN5PSI1MCIgcj0iMS41Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI0NiIgcj0iMS44Ii8+PGNpcmNsZSBjeD0iNTkiIGN5PSI0MyIgcj0iMS40Ii8+CjxjaXJjbGUgY3g9IjI1IiBjeT0iNjEiIHI9IjEuNCIvPjxjaXJjbGUgY3g9IjM0IiBjeT0iNjEiIHI9IjEuOSIvPjxjaXJjbGUgY3g9IjQ0IiBjeT0iNTgiIHI9IjEuNSIvPjxjaXJjbGUgY3g9IjU0IiBjeT0iNTUiIHI9IjEuOCIvPjxjaXJjbGUgY3g9IjY1IiBjeT0iNTEiIHI9IjEuMyIvPgo8Y2lyY2xlIGN4PSIzMSIgY3k9IjcwIiByPSIxLjciLz48Y2lyY2xlIGN4PSI0MSIgY3k9IjY5IiByPSIxLjUiLz48Y2lyY2xlIGN4PSI1MSIgY3k9IjY2IiByPSIxLjciLz48Y2lyY2xlIGN4PSI2MSIgY3k9IjYyIiByPSIxLjQiLz4KPGNpcmNsZSBjeD0iNDAiIGN5PSI3OSIgcj0iMS40Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3NiIgcj0iMS44Ii8+PGNpcmNsZSBjeD0iNTkiIGN5PSI3MSIgcj0iMS4zIi8+CjxjaXJjbGUgY3g9IjQ3IiBjeT0iODYiIHI9IjEuNCIvPjxjaXJjbGUgY3g9IjU2IiBjeT0iODEiIHI9IjEuNSIvPgo8L2c+CjxwYXRoIGQ9Ik0zOCA4NSBDNDMgNjgsNTIgNTQsNjcgMzkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzUzNmQ1OCIgc3Ryb2tlLXdpZHRoPSIxLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjU1Ii8+Cjwvc3ZnPg==" alt="아이비 잎 점묘화"></div>
+      <div class="eyebrow">AMI SOUND COLLECTION</div>
+      <h1>아미의 소리를<br>채집해 보세요.</h1>
+      <p>미술관에서 들려오는 소리 중<br>마음을 끌어당기는 소리를 하나씩 녹음해보세요.<br>모은 소리는 음악이 되어 나만의 <b>10초 아미 사운드</b>가 됩니다.</p>
+      <div class="notice">마이크 사용 권한이 필요합니다. 녹음된 소리는 이 브라우저 안에서만 사용되며 서버로 전송되지 않습니다.</div>
+      <button class="primary" id="startBtn">소리 채집 시작하기</button>
+    </div>
+  </section>
+
+  <section class="screen" id="collect">
+    <div class="eyebrow">01 · 채집</div>
+    <h2>지금 아미미술관에서는<br>어떤 소리가 들리나요?</h2>
+    <p>마음이 가는 소리에 휴대폰을 가까이 대고 소리를 채집해보세요.</p>
+    <div class="recordbox">
+      <div class="mic" id="mic">🎙</div>
+      <div class="timer" id="timer">00:03</div>
+      <p class="hint" id="hint">버튼을 누르면 3초 동안 녹음됩니다.</p>
+    </div>
+    <div class="count" id="count">0 / 5 채집</div>
+    <div class="dots" id="dots"></div>
+    <button class="primary" id="recordBtn">이 소리 채집하기</button>
+    <button class="secondary" id="finishEarly" style="display:none">이제 음악 만들기</button>
+  </section>
+
+  <section class="screen" id="mix">
+    <div class="mix">
+      <div class="eyebrow">02 · 조합</div>
+      <h2>당신이 모은 소리를<br>아미의 음악으로 바꾸는 중</h2>
+      <div class="music-orb"></div>
+      <p id="mixText">채집한 소리를 분석하고 있어요.</p>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <p class="small">잠시만 기다려주세요.</p>
+    </div>
+  </section>
+
+  <section class="screen" id="result">
+    <div class="eyebrow">03 · 나의 아미 사운드</div>
+    <h2>당신이 오늘<br>귀 기울인 곳</h2>
+    <div class="result-card">
+      <span class="result-tag" id="tag">나의 아미 사운드</span>
+      <div class="result-title" id="resultTitle">아미의 작은 변화에 귀 기울인 사람</div>
+      <p id="resultText">당신이 채집한 소리는 서로 다른 순간들을 하나의 음악으로 이어주었습니다.</p>
+      <div class="notice" id="recommendation">아미를 천천히 걸으며 방금 지나온 공간의 소리를 다시 들어보세요.</div>
+    </div>
+    <button class="primary" id="playBtn">나의 아미 사운드 듣기 · 10초</button>
+    <button class="secondary" id="againBtn">다시 채집하기</button>
+    <div class="footer">AMI MUSEUM · SOUND COLLECTION</div>
+  </section>
+</main>
+</div>
+<audio id="live" controls></audio>
+<script>
+const $=s=>document.querySelector(s);
+const screens={intro:$('#intro'),collect:$('#collect'),mix:$('#mix'),result:$('#result')};
+let stream=null,recorder=null,chunks=[],recordings=[],mixAudio=null, audioCtx=null, mixBuffer=null;
+
+function show(name){
+  Object.values(screens).forEach(x=>x.classList.remove('active'));
+  screens[name].classList.add('active');
+  $('#step').textContent={intro:'INTRO',collect:'01 · COLLECT',mix:'02 · MIX',result:'03 · RESULT'}[name];
+}
+function leaves(n=18){
+  const box=$('#leaves');
+  for(let i=0;i<n;i++){
+    const el=document.createElement('span'); el.className='leaf';
+    el.textContent=Math.random()>.35?'🍂':'🍃';
+    el.style.left=(Math.random()*100)+'%';
+    el.style.setProperty('--drift',(Math.random()*180-90)+'px');
+    el.style.animationDuration=(4+Math.random()*5)+'s';
+    el.style.animationDelay=(Math.random()*2)+'s';
+    el.style.fontSize=(12+Math.random()*12)+'px';
+    box.appendChild(el);
+    setTimeout(()=>el.remove(),11000);
+  }
+}
+function dots(){
+  $('#dots').innerHTML='';
+  for(let i=0;i<5;i++){let d=document.createElement('span');d.className='dot '+(i<recordings.length?'done':'');$('#dots').appendChild(d)}
+  $('#count').textContent=`${recordings.length} / 5 채집`;
+  $('#finishEarly').style.display=recordings.length>=3?'block':'none';
+}
+async function start(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    show('collect'); dots();
+  }catch(e){
+    alert('마이크 사용 권한이 필요합니다. 브라우저에서 마이크 권한을 허용한 뒤 다시 시도해주세요.');
+  }
+}
+function record(){
+  if(!stream) return;
+  chunks=[]; recorder=new MediaRecorder(stream);
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});
+    recordings.push(blob); dots();
+    $('#hint').textContent='채집 완료! 다른 소리도 찾아보세요.';
+    $('#mic').classList.remove('recording');
+    $('#recordBtn').textContent=recordings.length>=5?'음악 만들기':'다른 소리 채집하기';
+    if(recordings.length>=5) $('#recordBtn').onclick=makeMusic;
+  };
+  recorder.start(); $('#mic').classList.add('recording');
+  let left=3; $('#timer').textContent='00:03';
+  const t=setInterval(()=>{left--;$('#timer').textContent='00:0'+Math.max(left,0);if(left<=0){clearInterval(t);recorder.stop()}},1000);
+}
+function makeMusic(){
+  if(recordings.length<3){alert('소리를 3개 이상 채집해주세요.');return}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  show('mix'); leaves(28);
+  let p=0; const iv=setInterval(()=>{p+=2;$('#bar').style.width=p+'%';
+    if(p<30)$('#mixText').textContent='채집한 소리를 살펴보고 있어요.';
+    else if(p<65)$('#mixText').textContent='각 소리를 음악적 요소로 바꾸고 있어요.';
+    else $('#mixText').textContent='서로 다른 소리를 하나의 음악으로 엮고 있어요.';
+    if(p>=100){clearInterval(iv);createMix()}
+  },55);
+}
+async function blobToBuffer(blob){
+  const arr=await blob.arrayBuffer();
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  return await audioCtx.decodeAudioData(arr.slice(0));
+}
+async function createMix(){
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  await audioCtx.resume();
+  const buffers=[];
+  for(const b of recordings){try{buffers.push(await blobToBuffer(b))}catch(e){}}
+
+  const sampleRate=audioCtx.sampleRate;
+  const length=Math.ceil(sampleRate*10);
+  const off=new OfflineAudioContext(2,length,sampleRate);
+  const master=off.createGain(); master.gain.value=.55; master.connect(off.destination);
+
+  const roles=[
+    {rate:0.72,gain:.34,pan:-.25,delay:0,filter:900},
+    {rate:1.65,gain:.28,pan:.25,delay:1.2,filter:3000},
+    {rate:1.05,gain:.38,pan:-.05,delay:2.4,filter:1800},
+    {rate:0.82,gain:.3,pan:.12,delay:4.4,filter:2200},
+    {rate:1.0,gain:.25,pan:-.18,delay:5.7,filter:1400}
+  ];
+
+  buffers.forEach((buf,i)=>{
+    const role=roles[i%roles.length];
+    const src=off.createBufferSource(); src.buffer=buf; src.playbackRate.value=role.rate;
+    const gain=off.createGain();
+    gain.gain.setValueAtTime(0,role.delay);
+    gain.gain.linearRampToValueAtTime(role.gain,role.delay+.25);
+    gain.gain.setValueAtTime(role.gain,8.8);
+    gain.gain.linearRampToValueAtTime(0,9.8);
+    const filter=off.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=role.filter;
+    const pan=off.createStereoPanner(); pan.pan.value=role.pan;
+    src.connect(filter).connect(gain).connect(pan).connect(master);
+    src.start(role.delay);
+
+    if(i===2){
+      for(let k=1;k<4;k++){
+        const s=off.createBufferSource(); s.buffer=buf; s.playbackRate.value=1.05;
+        const g=off.createGain();
+        const when=role.delay+k*1.45;
+        g.gain.setValueAtTime(.22,when);
+        g.gain.exponentialRampToValueAtTime(.01,Math.min(9.9,when+.55));
+        s.connect(g).connect(master); s.start(when);
+      }
+    }
+  });
+
+  mixBuffer=await off.startRendering();
+  setTimeout(()=>{show('result');makeResult()},500);
+}
+function makeResult(){
+  const n=recordings.length;
+  const titles=[
+    ['작은 변화에 귀 기울인 사람','당신은 크고 선명한 장면보다, 지나가며 발견한 작은 소리에 오래 머물렀어요.','나뭇잎, 바람, 새소리처럼 아미의 자연을 천천히 다시 걸어보세요.'],
+    ['공간의 흔적을 따라간 사람','당신이 모은 소리에는 오래된 공간을 지나며 남는 움직임과 울림이 담겨 있어요.','나무 바닥과 문, 창문이 있는 옛 학교의 공간을 다시 천천히 살펴보세요.'],
+    ['사람과 함께 듣는 사람','당신의 아미 사운드는 혼자만의 관람보다 사람과 사람 사이의 순간을 담고 있어요.','사람들의 대화와 웃음이 머무는 공간에서 아미의 분위기를 다시 느껴보세요.'],
+    ['장면을 기억하는 사람','당신이 고른 소리는 지금의 아미와 오래된 학교의 기억을 이어주는 장면을 만들었어요.','옛 교실과 복도, 창문을 따라 걸으며 공간에 남은 흔적을 다시 찾아보세요.']
+  ];
+  const idx=n%4;
+  $('#resultTitle').textContent=titles[idx][0];
+  $('#resultText').textContent=titles[idx][1];
+  $('#recommendation').textContent=titles[idx][2];
+}
+$('#startBtn').onclick=start;
+$('#recordBtn').onclick=record;
+$('#finishEarly').onclick=makeMusic;
+$('#againBtn').onclick=()=>{recordings=[];dots();$('#recordBtn').onclick=record;$('#recordBtn').textContent='이 소리 채집하기';$('#hint').textContent='버튼을 누르면 3초 동안 녹음됩니다.';show('collect')};
+let activeMixSource=null;
+async function playMix(){
+  if(!mixBuffer) return;
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    await audioCtx.resume();
+    if(activeMixSource){try{activeMixSource.stop()}catch(e){}}
+    activeMixSource=audioCtx.createBufferSource();
+    const gain=audioCtx.createGain(); gain.gain.value=.72;
+    activeMixSource.buffer=mixBuffer;
+    activeMixSource.connect(gain).connect(audioCtx.destination);
+    activeMixSource.start(0);
+  }catch(e){}
+}
+$('#playBtn').onclick=playMix;
+</script>
+</body>
+</html>
