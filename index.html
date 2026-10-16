@@ -207,9 +207,17 @@ function stopPcmRecording(){
   $('#hint').textContent='채집 완료! 다른 소리도 찾아보세요.';
   $('#mic').classList.remove('recording');
   $('#recordBtn').textContent=recordings.length>=5?'음악 만들기':'다른 소리 채집하기';
-  if(recordings.length>=5) $('#recordBtn').onclick=makeMusic;
+  if(recordings.length>=3) $('#finishEarly').style.display='block';
+  if(recordings.length>=5){
+    $('#recordBtn').onclick=makeMusic;
+    $('#recordBtn').textContent='음악 만들기';
+  }
 }
 function encodeWav(samples,sampleRate){
+  // Raise quiet microphone recordings to a useful listening level without clipping.
+  let peak=0;
+  for(let i=0;i<samples.length;i++) peak=Math.max(peak,Math.abs(samples[i]));
+  const boost=peak>0.0001 ? Math.min(12,0.88/peak) : 1;
   const buffer=new ArrayBuffer(44+samples.length*2);
   const view=new DataView(buffer);
   const write=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
@@ -221,7 +229,7 @@ function encodeWav(samples,sampleRate){
   write(36,'data'); view.setUint32(40,samples.length*2,true);
   let p=44;
   for(let i=0;i<samples.length;i++){
-    let s=Math.max(-1,Math.min(1,samples[i]));
+    let s=Math.max(-1,Math.min(1,samples[i]*boost));
     view.setInt16(p,s<0?s*0x8000:s*0x7fff,true); p+=2;
   }
   return new Blob([buffer],{type:'audio/wav'});
@@ -250,6 +258,9 @@ function audioBufferToWav(buffer){
   for(let i=0;i<length;i++){
     for(let c=0;c<channels;c++) interleaved[i*channels+c]=buffer.getChannelData(c)[i];
   }
+  let peak=0;
+  for(let i=0;i<interleaved.length;i++) peak=Math.max(peak,Math.abs(interleaved[i]));
+  const boost=peak>0.0001 ? Math.min(4,0.92/peak) : 1;
   const out=new ArrayBuffer(44+interleaved.length*2);
   const view=new DataView(out);
   const write=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
@@ -261,7 +272,7 @@ function audioBufferToWav(buffer){
   write(36,'data'); view.setUint32(40,interleaved.length*2,true);
   let p=44;
   for(let i=0;i<interleaved.length;i++){
-    let s=Math.max(-1,Math.min(1,interleaved[i]));
+    let s=Math.max(-1,Math.min(1,interleaved[i]*boost));
     view.setInt16(p,s<0?s*0x8000:s*0x7fff,true); p+=2;
   }
   return new Blob([out],{type:'audio/wav'});
@@ -338,6 +349,7 @@ $('#startBtn').onclick=start;
 $('#recordBtn').onclick=record;
 $('#finishEarly').onclick=makeMusic;
 mixAudio=$('#live');
+mixAudio.muted=false; mixAudio.volume=1;
 let activeMixSource=null;
 async function playMix(){
   if(!mixAudio || !mixAudio.src) return;
