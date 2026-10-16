@@ -111,7 +111,6 @@ p{line-height:1.75;margin:0 0 18px;color:#526055}
       <div class="notice" id="recommendation">아미를 천천히 걸으며 방금 지나온 공간의 소리를 다시 들어보세요.</div>
     </div>
     <button class="primary" id="playBtn">나의 아미 사운드 듣기 · 10초</button>
-    <button class="secondary" id="againBtn">다시 채집하기</button>
     <div class="footer">AMI MUSEUM · SOUND COLLECTION</div>
   </section>
 </main>
@@ -120,7 +119,7 @@ p{line-height:1.75;margin:0 0 18px;color:#526055}
 <script>
 const $=s=>document.querySelector(s);
 const screens={intro:$('#intro'),collect:$('#collect'),mix:$('#mix'),result:$('#result')};
-let stream=null,recorder=null,chunks=[],recordings=[],mixAudio=null, audioCtx=null, mixBuffer=null;
+let stream=null,recordings=[],mixAudio=null, audioCtx=null, mixBuffer=null, pcmSource=null, pcmProcessor=null, pcmGain=null, pcmChunks=[], pcmRecording=false;
 
 function show(name){
   Object.values(screens).forEach(x=>x.classList.remove('active'));
@@ -149,27 +148,83 @@ function dots(){
 }
 async function start(){
   try{
-    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    await audioCtx.resume();
+    stream=await navigator.mediaDevices.getUserMedia({audio:{
+      echoCancellation:false, noiseSuppression:false, autoGainControl:false
+    }});
     show('collect'); dots();
   }catch(e){
     alert('마이크 사용 권한이 필요합니다. 브라우저에서 마이크 권한을 허용한 뒤 다시 시도해주세요.');
   }
 }
 function record(){
-  if(!stream) return;
-  chunks=[]; recorder=new MediaRecorder(stream);
-  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-  recorder.onstop=()=>{
-    const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});
-    recordings.push(blob); dots();
-    $('#hint').textContent='채집 완료! 다른 소리도 찾아보세요.';
-    $('#mic').classList.remove('recording');
-    $('#recordBtn').textContent=recordings.length>=5?'음악 만들기':'다른 소리 채집하기';
-    if(recordings.length>=5) $('#recordBtn').onclick=makeMusic;
+  if(!stream || pcmRecording) return;
+  pcmChunks=[]; pcmRecording=true;
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  audioCtx.resume();
+
+  pcmSource=audioCtx.createMediaStreamSource(stream);
+  pcmProcessor=audioCtx.createScriptProcessor(4096,1,1);
+  pcmGain=audioCtx.createGain();
+  pcmGain.gain.value=0;
+
+  pcmProcessor.onaudioprocess=e=>{
+    if(!pcmRecording) return;
+    const input=e.inputBuffer.getChannelData(0);
+    pcmChunks.push(new Float32Array(input));
   };
-  recorder.start(); $('#mic').classList.add('recording');
+
+  pcmSource.connect(pcmProcessor);
+  pcmProcessor.connect(pcmGain);
+  pcmGain.connect(audioCtx.destination);
+
+  $('#mic').classList.add('recording');
   let left=3; $('#timer').textContent='00:03';
-  const t=setInterval(()=>{left--;$('#timer').textContent='00:0'+Math.max(left,0);if(left<=0){clearInterval(t);recorder.stop()}},1000);
+  const t=setInterval(()=>{
+    left--; $('#timer').textContent='00:0'+Math.max(left,0);
+    if(left<=0){
+      clearInterval(t);
+      stopPcmRecording();
+    }
+  },1000);
+}
+function stopPcmRecording(){
+  if(!pcmRecording) return;
+  pcmRecording=false;
+  if(pcmSource){try{pcmSource.disconnect()}catch(e){}}
+  if(pcmProcessor){try{pcmProcessor.disconnect()}catch(e){}}
+  if(pcmGain){try{pcmGain.disconnect()}catch(e){}}
+
+  const sampleRate=audioCtx.sampleRate;
+  const total=pcmChunks.reduce((n,a)=>n+a.length,0);
+  const samples=new Float32Array(total);
+  let offset=0;
+  for(const chunk of pcmChunks){samples.set(chunk,offset);offset+=chunk.length;}
+  const blob=encodeWav(samples,sampleRate);
+  recordings.push(blob);
+  dots();
+  $('#hint').textContent='채집 완료! 다른 소리도 찾아보세요.';
+  $('#mic').classList.remove('recording');
+  $('#recordBtn').textContent=recordings.length>=5?'음악 만들기':'다른 소리 채집하기';
+  if(recordings.length>=5) $('#recordBtn').onclick=makeMusic;
+}
+function encodeWav(samples,sampleRate){
+  const buffer=new ArrayBuffer(44+samples.length*2);
+  const view=new DataView(buffer);
+  const write=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  write(0,'RIFF'); view.setUint32(4,36+samples.length*2,true);
+  write(8,'WAVE'); write(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
+  view.setUint16(32,2,true); view.setUint16(34,16,true);
+  write(36,'data'); view.setUint32(40,samples.length*2,true);
+  let p=44;
+  for(let i=0;i<samples.length;i++){
+    let s=Math.max(-1,Math.min(1,samples[i]));
+    view.setInt16(p,s<0?s*0x8000:s*0x7fff,true); p+=2;
+  }
+  return new Blob([buffer],{type:'audio/wav'});
 }
 function makeMusic(){
   if(recordings.length<3){alert('소리를 3개 이상 채집해주세요.');return}
@@ -186,6 +241,30 @@ async function blobToBuffer(blob){
   const arr=await blob.arrayBuffer();
   audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
   return await audioCtx.decodeAudioData(arr.slice(0));
+}
+function audioBufferToWav(buffer){
+  const channels=buffer.numberOfChannels;
+  const length=buffer.length;
+  const sampleRate=buffer.sampleRate;
+  const interleaved=new Float32Array(length*channels);
+  for(let i=0;i<length;i++){
+    for(let c=0;c<channels;c++) interleaved[i*channels+c]=buffer.getChannelData(c)[i];
+  }
+  const out=new ArrayBuffer(44+interleaved.length*2);
+  const view=new DataView(out);
+  const write=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  write(0,'RIFF'); view.setUint32(4,36+interleaved.length*2,true);
+  write(8,'WAVE'); write(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,channels,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*channels*2,true);
+  view.setUint16(32,channels*2,true); view.setUint16(34,16,true);
+  write(36,'data'); view.setUint32(40,interleaved.length*2,true);
+  let p=44;
+  for(let i=0;i<interleaved.length;i++){
+    let s=Math.max(-1,Math.min(1,interleaved[i]));
+    view.setInt16(p,s<0?s*0x8000:s*0x7fff,true); p+=2;
+  }
+  return new Blob([out],{type:'audio/wav'});
 }
 async function createMix(){
   audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
@@ -232,6 +311,14 @@ async function createMix(){
   });
 
   mixBuffer=await off.startRendering();
+  const wavBlob=audioBufferToWav(mixBuffer);
+  if(mixAudio){
+    try{URL.revokeObjectURL(mixAudio.dataset.objectUrl||'')}catch(e){}
+    const objectUrl=URL.createObjectURL(wavBlob);
+    mixAudio.dataset.objectUrl=objectUrl;
+    mixAudio.src=objectUrl;
+    mixAudio.load();
+  }
   setTimeout(()=>{show('result');makeResult()},500);
 }
 function makeResult(){
@@ -250,20 +337,30 @@ function makeResult(){
 $('#startBtn').onclick=start;
 $('#recordBtn').onclick=record;
 $('#finishEarly').onclick=makeMusic;
-$('#againBtn').onclick=()=>{recordings=[];dots();$('#recordBtn').onclick=record;$('#recordBtn').textContent='이 소리 채집하기';$('#hint').textContent='버튼을 누르면 3초 동안 녹음됩니다.';show('collect')};
+mixAudio=$('#live');
 let activeMixSource=null;
 async function playMix(){
-  if(!mixBuffer) return;
+  if(!mixAudio || !mixAudio.src) return;
   try{
-    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
-    await audioCtx.resume();
-    if(activeMixSource){try{activeMixSource.stop()}catch(e){}}
-    activeMixSource=audioCtx.createBufferSource();
-    const gain=audioCtx.createGain(); gain.gain.value=.72;
-    activeMixSource.buffer=mixBuffer;
-    activeMixSource.connect(gain).connect(audioCtx.destination);
-    activeMixSource.start(0);
-  }catch(e){}
+    mixAudio.currentTime=0;
+    await mixAudio.play();
+  }catch(e){
+    // Fallback to Web Audio if the HTML audio element is unavailable.
+    if(mixBuffer){
+      try{
+        audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+        await audioCtx.resume();
+        if(activeMixSource){try{activeMixSource.stop()}catch(e){}}
+        activeMixSource=audioCtx.createBufferSource();
+        activeMixSource.buffer=mixBuffer;
+        const gain=audioCtx.createGain(); gain.gain.value=.72;
+        activeMixSource.connect(gain).connect(audioCtx.destination);
+        activeMixSource.start(0);
+      }catch(err){
+        alert('재생을 시작하지 못했어요. 휴대폰의 무음 모드와 미디어 음량을 확인한 뒤 다시 눌러주세요.');
+      }
+    }
+  }
 }
 $('#playBtn').onclick=playMix;
 </script>
